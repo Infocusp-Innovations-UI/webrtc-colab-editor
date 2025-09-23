@@ -1,0 +1,27 @@
+{
+  "name": "colab-editor-server",
+  "version": "1.0.0",
+  "description": "Yjs WebSocket server for collaborative editing",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "yjs": "^13.6.19",
+    "y-websocket": "^2.0.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "keywords": [
+    "yjs",
+    "websocket",
+    "collaborative-editing",
+    "crdt"
+  ],
+  "author": "",
+  "license": "MIT"
+}

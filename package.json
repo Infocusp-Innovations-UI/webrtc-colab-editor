@@ -1,0 +1,30 @@
+{
+  "name": "webrtc-colab-editor",
+  "version": "1.0.0",
+  "description": "A collaborative editor using React.js and Yjs",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "npm run dev --workspace=server",
+    "client:dev": "npm run start --workspace=client",
+    "server:start": "npm run start --workspace=server",
+    "client:build": "npm run build --workspace=client",
+    "install:all": "npm install && npm install --workspace=client && npm install --workspace=server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "keywords": [
+    "collaborative-editing",
+    "yjs",
+    "react",
+    "websocket",
+    "realtime"
+  ],
+  "author": "",
+  "license": "MIT"
+}
