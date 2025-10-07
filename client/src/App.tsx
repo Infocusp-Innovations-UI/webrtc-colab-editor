@@ -10,7 +10,10 @@ function App() {
       </header>
 
       <main className="App-main">
-        <CollaborativeEditor roomName="my-room" />
+        <CollaborativeEditor
+          roomName="my-room"
+          userName={`User-${Math.floor(Math.random() * 1000)}`}
+        />
       </main>
     </div>
   );
