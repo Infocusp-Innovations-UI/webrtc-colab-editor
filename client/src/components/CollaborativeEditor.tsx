@@ -6,110 +6,68 @@ import { javascript } from '@codemirror/lang-javascript';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { yCollab } from 'y-codemirror.next';
+import './CollaborativeEditor.css';
 
 /**
- * Props for the CollaborativeEditor component
+ * Collaborative editor component using CodeMirror 6 and Yjs
+ * Users in the same room can edit together in real-time
  */
 interface CollaborativeEditorProps {
-  roomName?: string; // The collaboration room name - users in the same room will see each other's edits
+  roomName?: string; // Room name for collaboration session
 }
 
-/**
- * CollaborativeEditor Component
- *
- * A React component that provides a collaborative code editor using CodeMirror 6 and Yjs.
- * Multiple users can edit the same document in real-time, similar to Google Docs.
- *
- * How it works:
- * 1. Creates a Yjs document (CRDT - Conflict-free Replicated Data Type) for synchronized state
- * 2. Connects to a WebSocket server to sync changes with other users
- * 3. Binds the Yjs document to CodeMirror editor for real-time collaboration
- */
 const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
-  roomName = 'default-room' // Default room if not specified
+  roomName = 'default-room'
 }) => {
-  // Reference to the DOM element where CodeMirror will be mounted
+  // DOM element where CodeMirror will mount
   const editorRef = useRef<HTMLDivElement>(null);
-
-  // Reference to the CodeMirror EditorView instance
-  // We store this to access the editor instance if needed and for cleanup
+  // CodeMirror editor instance
   const viewRef = useRef<EditorView | null>(null);
 
-  /**
-   * Effect hook that sets up the collaborative editor
-   * Runs when component mounts or when roomName changes
-   */
   useEffect(() => {
-    // Safety check: ensure the DOM element exists before proceeding
     if (!editorRef.current) return;
 
-    // Step 1: Create a new Yjs document
-    // This is the shared data structure that will be synchronized across all users
+    // Create Yjs document (shared data structure)
     const ydoc = new Y.Doc();
-
-    // Create a shared text type called 'codemirror'
-    // This is where the editor content will be stored
-    // Yjs provides different shared types (Text, Array, Map, etc.)
     const ytext = ydoc.getText('codemirror');
 
-    // Step 2: Set up WebSocket provider for real-time synchronization
-    // This connects to your WebSocket server and handles:
-    // - Sending local changes to other users
-    // - Receiving and applying changes from other users
-    // - Managing user presence/awareness (cursors, selections)
+    // Connect to WebSocket server for real-time sync
     const provider = new WebsocketProvider(
-      'ws://localhost:1234', // WebSocket server URL - change this to your server address
-      roomName,              // Room/channel name - users in same room collaborate together
-      ydoc                   // The Yjs document to synchronize
+      'ws://localhost:1234',
+      roomName,
+      ydoc
     );
 
-    // Step 3: Create CodeMirror editor state
-    // This configures the editor with all necessary extensions
+    // Configure CodeMirror with extensions
     const state = EditorState.create({
-      // Initialize editor with current content from Yjs (usually empty on first load)
       doc: ytext.toString(),
-
-      // Extensions add features to the editor
       extensions: [
-        basicSetup,              // Basic editor features (line numbers, undo/redo, search, etc.)
-        javascript(),            // JavaScript syntax highlighting and language support
-
-        // yCollab is the magic that connects CodeMirror to Yjs
-        // It handles:
-        // - Converting CodeMirror changes to Yjs operations
-        // - Applying remote Yjs changes to CodeMirror
-        // - Showing other users' cursors and selections via awareness
-        yCollab(ytext, provider.awareness)
+        basicSetup,              // Line numbers, undo/redo, search, etc.
+        javascript(),            // JavaScript syntax highlighting
+        yCollab(ytext, provider.awareness) // Yjs binding for collaboration
       ]
     });
 
-    // Step 4: Create the CodeMirror editor view and mount it to the DOM
+    // Create and mount the editor
     const view = new EditorView({
-      state,                    // The editor state we just created
-      parent: editorRef.current // Mount the editor inside our ref element
+      state,
+      parent: editorRef.current
     });
 
-    // Store the view instance for potential future use
     viewRef.current = view;
 
-    // Step 5: Cleanup function
-    // This runs when the component unmounts or when roomName changes
-    // Important: Always clean up to prevent memory leaks and connection issues
+    // Cleanup on unmount or room change
     return () => {
-      view.destroy();        // Destroy the CodeMirror editor instance
-      provider.destroy();    // Close WebSocket connection and clean up listeners
-      ydoc.destroy();        // Clean up the Yjs document
+      view.destroy();
+      provider.destroy();
+      ydoc.destroy();
     };
-  }, [roomName]); // Re-run effect if roomName changes (switch to different collaboration room)
+  }, [roomName]);
 
   return (
     <div
       ref={editorRef}
-      style={{
-        height: '500px',        // Fixed height for the editor
-        border: '1px solid #ddd', // Simple border for visual separation
-        fontSize: '14px'        // Comfortable reading size
-      }}
+      className="collaborative-editor-container"
     />
   );
 };
