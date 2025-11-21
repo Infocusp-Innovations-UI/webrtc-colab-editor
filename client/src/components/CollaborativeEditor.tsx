@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -21,9 +21,8 @@ import {
 import { tags } from '@lezer/highlight';
 import * as Y from 'yjs';
 import { UndoManager } from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
 import { yCollab } from 'y-codemirror.next';
-import './CollaborativeEditor.css';
+import { WebrtcProvider } from 'y-webrtc';
 
 /**
  * Collaborative editor component using CodeMirror 6 and Yjs
@@ -31,15 +30,18 @@ import './CollaborativeEditor.css';
  */
 interface CollaborativeEditorProps {
   roomName?: string; // Room name for collaboration session
+  userId: string; // Add userId to props
   userName?: string; // Current user's display name
+  setOnlineUsers: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   roomName = 'default-room',
-  userName = 'Anonymous'
+  userId,
+  userName = 'Anonymous',
+  setOnlineUsers
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -48,26 +50,22 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText('codemirror');
 
-    // Set up WebSocket provider with user awareness
-    const provider = new WebsocketProvider(
-      'ws://localhost:1234',
-      roomName,
-      ydoc
-    );
+    const provider = new WebrtcProvider(roomName, ydoc);
 
     // Set current user info in awareness
     provider.awareness.setLocalStateField('user', {
       name: userName,
-      color: getRandomColor()
+      color: getRandomColor(),
+      userId
     });
 
     // Track other online users
     const updateUsers = () => {
       const states = Array.from(provider.awareness.getStates().values());
       const users = states
-        .map((state: any) => state.user?.name)
-        .filter((name): name is string => !!name && name !== userName);
-      setOnlineUsers(users);
+        .map((state: any) => state.user)
+        .filter((user): user is { name: string; userId: string } => !!user && user.userId !== userId);
+      setOnlineUsers(users.map(user => user.name));
     };
 
     provider.awareness.on('change', updateUsers);
@@ -85,8 +83,8 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       { tag: tags.string, color: '#a31515' },
       { tag: tags.number, color: '#098658' },
       { tag: tags.operator, color: '#000000' },
-      { tag: tags.variableName, color: '#001080' },
-      { tag: tags.propertyName, color: '#001080' },
+      { tag: tags.variableName, color: '#fff' },
+      { tag: tags.propertyName, color: '#fff' },
       { tag: tags.function(tags.variableName), color: '#795E26' },
     ]);
 
@@ -180,23 +178,14 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       provider.destroy();
       ydoc.destroy();
     };
-  }, [roomName, userName]);
+  }, [roomName, userId, userName, setOnlineUsers]);
 
   return (
-    <div>
-      {/* Online users indicator */}
-      {onlineUsers.length > 0 && (
-        <div className="online-users">
-          <span className="online-indicator">●</span>
-          {onlineUsers.length} user{onlineUsers.length > 1 ? 's' : ''} online
-          {onlineUsers.length <= 3 && `: ${onlineUsers.join(', ')}`}
-        </div>
-      )}
-
+    <div className="flex flex-col flex-grow bg-gray-800 rounded-lg shadow-lg">
       {/* Editor container */}
       <div
         ref={editorRef}
-        className="collaborative-editor-container"
+        className="flex-grow rounded-b-lg overflow-hidden"
       />
     </div>
   );

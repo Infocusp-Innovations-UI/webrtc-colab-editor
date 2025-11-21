@@ -1,22 +1,24 @@
-import { WebSocketServer } from 'ws'
-import { setupWSConnection } from 'y-websocket/bin/utils'
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { WebSocketServer } = require('ws');
+import { customSetupWSConnection } from './custom-utils.js';
 
-const PORT = process.env.PORT || 1234
+const PORT = process.env.PORT || 1234;
 
-console.log(`Starting Yjs WebSocket server on port ${PORT}...`)
+console.log(`Starting Yjs WebSocket server on port ${PORT}...`);
 
-const wss = new WebSocketServer({ 
+const wss = new WebSocketServer({
   port: PORT,
   perMessageDeflate: {
     threshold: 1024,
     concurrencyLimit: 10,
-  }
-})
+  },
+});
 
 wss.on('connection', (ws, request) => {
-  console.log('New client connected')
-  setupWSConnection(ws, request)
-})
+  console.log('New client connected');
+  customSetupWSConnection(ws, request, { wss });
+});
 
 wss.on('error', (error) => {
   console.error('WebSocket server error:', error)
