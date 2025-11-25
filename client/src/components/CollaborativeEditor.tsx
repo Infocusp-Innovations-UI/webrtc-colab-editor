@@ -35,15 +35,13 @@ interface CollaborativeEditorProps {
   userId: string; // Add userId to props
   userName?: string; // Current user's display name
   setOnlineUsers: React.Dispatch<React.SetStateAction<{ userId: string; name: string }[]>>;
-  ydocRef: React.MutableRefObject<Y.Doc | null>;
 }
 
 const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   roomName = 'default-room',
   userId,
   userName = 'Anonymous',
-  setOnlineUsers,
-  ydocRef
+  setOnlineUsers
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const prevUsersRef = useRef<string[]>([]);
@@ -53,7 +51,6 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
 
     // Create Yjs document and shared text
     const ydoc = new Y.Doc();
-    ydocRef.current = ydoc;
     const ytext = ydoc.getText('codemirror');
 
     const provider = new WebrtcProvider(roomName, ydoc);
