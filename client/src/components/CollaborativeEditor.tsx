@@ -19,6 +19,7 @@ import {
   closeBrackets,
   closeBracketsKeymap
 } from '@codemirror/autocomplete';
+import { searchKeymap, search } from '@codemirror/search';
 import { tags } from '@lezer/highlight';
 import * as Y from 'yjs';
 import { UndoManager } from 'yjs';
@@ -119,6 +120,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         closeBrackets(),
         autocompletion(),
         javascript(),
+        search(),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         syntaxHighlighting(syntaxTheme),
         EditorView.lineWrapping,
@@ -144,6 +146,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         // Keymaps for various features
         keymap.of([
           ...defaultKeymap,
+          ...searchKeymap,
           ...foldKeymap,
           ...completionKeymap,
           ...closeBracketsKeymap,
