@@ -78,7 +78,9 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           { tag: tags.function(tags.variableName), color: '#795E26' },
         ]);
 
-        const provider = new WebrtcProvider(roomName, ydoc);
+        const provider = new WebrtcProvider(roomName, ydoc, {
+          signaling: ['https://webrtc-colab-editor-signaling-server.onrender.com'],
+        });
 
         // Set current user info in awareness
         provider.awareness.setLocalStateField('user', {
