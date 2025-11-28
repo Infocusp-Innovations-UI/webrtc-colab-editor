@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import CollaborativeEditor from './components/CollaborativeEditor';
 import OnlineUsers from './components/OnlineUsers';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<{ userId: string; name: string }[]>([]);
+
   const [{ userId, userName }] = useState(() => {
     let userId = sessionStorage.getItem('userId');
     if (!userId) {
@@ -22,20 +25,23 @@ function App() {
   });
 
   return (
-    <div className="bg-gray-900 min-h-screen text-white flex flex-col items-center">
-      <header className="w-full py-6 px-4 bg-gray-800 shadow-md flex justify-between items-center">
+    <div className="bg-white min-h-screen text-gray-800 flex flex-col items-center">
+      <header className="w-full py-6 px-4 bg-gray-100 shadow-md flex justify-between items-center">
         <h1 className="text-3xl font-bold">Collaborative Editor</h1>
-        <OnlineUsers users={onlineUsers} />
       </header>
 
-      <main className="flex-grow w-full max-w-4xl p-4 flex flex-col">
+      <main className="flex-grow w-full max-w-4xl p-4 flex flex-row">
         <CollaborativeEditor
           roomName="my-room"
           userId={userId}
           userName={userName}
           setOnlineUsers={setOnlineUsers}
         />
+        <div className="w-64 pl-4">
+          <OnlineUsers users={onlineUsers} />
+        </div>
       </main>
+      <ToastContainer aria-label="Notifications" />
     </div>
   );
 }

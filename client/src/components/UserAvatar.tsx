@@ -34,7 +34,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({ userId }) => {
       >
         {initial}
       </div>
-      <div className="absolute top-full mt-2 w-max px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-full mt-2 w-max px-2 py-1 bg-white text-gray-800 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
         {userId}
       </div>
     </div>

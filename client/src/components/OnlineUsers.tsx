@@ -2,18 +2,21 @@ import React from 'react';
 import UserAvatar from './UserAvatar';
 
 interface OnlineUsersProps {
-  users: string[];
+  users: { userId: string; name: string }[];
 }
 
 const OnlineUsers: React.FC<OnlineUsersProps> = ({ users }) => {
   return (
-    <div className="flex items-center">
-      <div className="flex -space-x-4">
-        {users.map((userId) => (
-          <UserAvatar key={userId} userId={userId} />
+    <div className="flex flex-col items-center">
+      <h2 className="text-lg font-semibold mb-2">Users Online ({users.length})</h2>
+      <div className="flex flex-col space-y-2">
+        {users.map((user) => (
+          <div key={user.userId} className="flex items-center space-x-2">
+            <UserAvatar userId={user.userId} />
+            <span>{user.name}</span>
+          </div>
         ))}
       </div>
-      <span className="ml-4 text-white">{users.length} user{users.length !== 1 ? 's' : ''} online</span>
     </div>
   );
 };

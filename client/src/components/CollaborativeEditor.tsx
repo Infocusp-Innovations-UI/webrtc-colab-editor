@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { toast } from 'react-toastify';
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -18,11 +19,13 @@ import {
   closeBrackets,
   closeBracketsKeymap
 } from '@codemirror/autocomplete';
+import { searchKeymap, search } from '@codemirror/search';
 import { tags } from '@lezer/highlight';
 import * as Y from 'yjs';
 import { UndoManager } from 'yjs';
 import { yCollab } from 'y-codemirror.next';
 import { WebrtcProvider } from 'y-webrtc';
+import { IndexeddbPersistence } from 'y-indexeddb';
 
 /**
  * Collaborative editor component using CodeMirror 6 and Yjs
@@ -32,7 +35,7 @@ interface CollaborativeEditorProps {
   roomName?: string; // Room name for collaboration session
   userId: string; // Add userId to props
   userName?: string; // Current user's display name
-  setOnlineUsers: React.Dispatch<React.SetStateAction<string[]>>;
+  setOnlineUsers: React.Dispatch<React.SetStateAction<{ userId: string; name: string }[]>>;
 }
 
 const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
@@ -42,6 +45,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   setOnlineUsers
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const prevUsersRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -50,138 +54,165 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText('codemirror');
 
-    const provider = new WebrtcProvider(roomName, ydoc);
+    // Set up IndexedDB persistence
+    const persistence = new IndexeddbPersistence(roomName, ydoc);
+    let editorView: EditorView | null = null;
+    let undoManager: UndoManager | null = null;
 
-    // Set current user info in awareness
-    provider.awareness.setLocalStateField('user', {
-      name: userName,
-      color: getRandomColor(),
-      userId
-    });
+    persistence.on('synced', () => {
+      if (editorRef.current && !editorView) {
+        // Create undo manager that only tracks local changes
+        undoManager = new UndoManager(ytext, {
+          trackedOrigins: new Set([null])
+        });
 
-    // Track other online users
-    const updateUsers = () => {
-      const states = Array.from(provider.awareness.getStates().values());
-      const users = states
-        .map((state: any) => state.user)
-        .filter((user): user is { name: string; userId: string } => !!user && user.userId !== userId);
-      setOnlineUsers(users.map(user => user.name));
-    };
+        // Custom syntax highlighting theme
+        const syntaxTheme = HighlightStyle.define([
+          { tag: tags.keyword, color: '#0000ff', fontWeight: 'bold' },
+          { tag: tags.comment, color: '#008000', fontStyle: 'italic' },
+          { tag: tags.string, color: '#a31515' },
+          { tag: tags.number, color: '#098658' },
+          { tag: tags.operator, color: '#000000' },
+          { tag: tags.variableName, color: '#000' },
+          { tag: tags.propertyName, color: '#000' },
+          { tag: tags.function(tags.variableName), color: '#795E26' },
+        ]);
 
-    provider.awareness.on('change', updateUsers);
-    updateUsers();
+        const provider = new WebrtcProvider(roomName, ydoc);
 
-    // Create undo manager that only tracks local changes
-    const undoManager = new UndoManager(ytext, {
-      trackedOrigins: new Set([null])
-    });
+        // Set current user info in awareness
+        provider.awareness.setLocalStateField('user', {
+          name: userName,
+          color: getRandomColor(),
+          userId
+        });
 
-    // Custom syntax highlighting theme
-    const syntaxTheme = HighlightStyle.define([
-      { tag: tags.keyword, color: '#0000ff', fontWeight: 'bold' },
-      { tag: tags.comment, color: '#008000', fontStyle: 'italic' },
-      { tag: tags.string, color: '#a31515' },
-      { tag: tags.number, color: '#098658' },
-      { tag: tags.operator, color: '#000000' },
-      { tag: tags.variableName, color: '#fff' },
-      { tag: tags.propertyName, color: '#fff' },
-      { tag: tags.function(tags.variableName), color: '#795E26' },
-    ]);
+        // Track other online users
+        const updateUsers = () => {
+          const states = Array.from(provider.awareness.getStates().values());
+          const users = states
+            .map((state: any) => state.user)
+            .filter((user): user is { name: string; userId: string } => !!user && !!user.name && user.userId !== userId);
 
-    // Configure editor with comprehensive extensions
-    const state = EditorState.create({
-      doc: ytext.toString(),
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        foldGutter(),
-        indentOnInput(),
-        bracketMatching(),
-        closeBrackets(),
-        autocompletion(),
-        javascript(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        syntaxHighlighting(syntaxTheme),
-        EditorView.lineWrapping,
-        EditorState.tabSize.of(2),
+          const userNames = users.map(user => user.name);
+          const prevUserNames = prevUsersRef.current;
 
-        // Yjs collaboration with undo manager
-        yCollab(ytext, provider.awareness, { undoManager }),
+          userNames.forEach(name => {
+            if (!prevUserNames.includes(name)) {
+              toast.info(`${name} joined`);
+            }
+          });
 
-        // Custom theme
-        EditorView.theme({
-          '&': { height: '100%' },
-          '.cm-content': {
-            fontSize: '14px',
-            paddingTop: '16px',
-          },
-          '.cm-scroller': {
-            fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
-            fontSize: '14px',
-            lineHeight: '1.5',
-          },
-        }),
+          prevUserNames.forEach(name => {
+            if (!userNames.includes(name)) {
+              toast.info(`${name} left`);
+            }
+          });
 
-        // Keymaps for various features
-        keymap.of([
-          ...defaultKeymap,
-          ...foldKeymap,
-          ...completionKeymap,
-          ...closeBracketsKeymap,
-          indentWithTab,
-          // Custom undo/redo that uses Yjs UndoManager
-          {
-            key: 'Mod-z',
-            run: () => {
-              if (undoManager.canUndo()) {
-                undoManager.undo();
-                return true;
-              }
-              return false;
-            },
-          },
-          {
-            key: 'Mod-y',
-            run: () => {
-              if (undoManager.canRedo()) {
-                undoManager.redo();
-                return true;
-              }
-              return false;
-            },
-          },
-          {
-            key: 'Mod-Shift-z',
-            run: () => {
-              if (undoManager.canRedo()) {
-                undoManager.redo();
-                return true;
-              }
-              return false;
-            },
-          },
-        ]),
-      ]
-    });
+          prevUsersRef.current = userNames;
+          setOnlineUsers(users.map(user => ({ userId: user.userId, name: user.name })));
+        };
 
-    // Create and mount editor
-    const view = new EditorView({
-      state,
-      parent: editorRef.current
+        provider.awareness.on('change', updateUsers);
+        updateUsers();
+
+        // Configure editor with comprehensive extensions
+        const state = EditorState.create({
+          doc: ytext.toString(),
+          extensions: [
+            lineNumbers(),
+            highlightActiveLineGutter(),
+            foldGutter(),
+            indentOnInput(),
+            bracketMatching(),
+            closeBrackets(),
+            autocompletion(),
+            javascript(),
+            search(),
+            syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+            syntaxHighlighting(syntaxTheme),
+            EditorView.lineWrapping,
+            EditorState.tabSize.of(2),
+
+            // Yjs collaboration with undo manager
+            yCollab(ytext, provider.awareness, { undoManager }),
+
+            // Custom theme
+            EditorView.theme({
+              '&': { height: '100%' },
+              '.cm-content': {
+                fontSize: '14px',
+                paddingTop: '16px',
+              },
+              '.cm-scroller': {
+                fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
+                fontSize: '14px',
+                lineHeight: '1.5',
+              },
+            }),
+
+            // Keymaps for various features
+            keymap.of([
+              ...defaultKeymap,
+              ...searchKeymap,
+              ...foldKeymap,
+              ...completionKeymap,
+              ...closeBracketsKeymap,
+              indentWithTab,
+              // Custom undo/redo that uses Yjs UndoManager
+              {
+                key: 'Mod-z',
+                run: () => {
+                  if (undoManager?.canUndo()) {
+                    undoManager.undo();
+                    return true;
+                  }
+                  return false;
+                },
+              },
+              {
+                key: 'Mod-y',
+                run: () => {
+                  if (undoManager?.canRedo()) {
+                    undoManager.redo();
+                    return true;
+                  }
+                  return false;
+                },
+              },
+              {
+                key: 'Mod-Shift-z',
+                run: () => {
+                  if (undoManager?.canRedo()) {
+                    undoManager.redo();
+                    return true;
+                  }
+                  return false;
+                },
+              },
+            ]),
+          ]
+        });
+
+        // Create and mount editor
+        editorView = new EditorView({
+          state,
+          parent: editorRef.current
+        });
+      }
     });
 
     // Cleanup
     return () => {
-      undoManager.destroy();
-      view.destroy();
-      provider.awareness.off('change', updateUsers);
-      provider.destroy();
+      if (undoManager) undoManager.destroy();
+      if (editorView) editorView.destroy();
+      persistence.destroy();
       ydoc.destroy();
     };
   }, [roomName, userId, userName, setOnlineUsers]);
 
   return (
-    <div className="flex flex-col flex-grow bg-gray-800 rounded-lg shadow-lg">
+    <div className="flex flex-col flex-grow bg-gray-100 rounded-lg shadow-lg">
       {/* Editor container */}
       <div
         ref={editorRef}
