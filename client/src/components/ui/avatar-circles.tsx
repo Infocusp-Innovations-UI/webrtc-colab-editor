@@ -19,9 +19,8 @@ export const AvatarCircles = ({
     <div className={cn("z-10 flex -space-x-4 rtl:space-x-reverse", className)}>
       {users.slice(0, displayCount).map(({ id, name, color }: User) => (
         <Tooltip key={id}>
-          <TooltipTrigger delay={3000}>
+          <TooltipTrigger>
             <img
-              key={id}
               className="h-10 w-10 rounded-full border-2 border-white dark:border-gray-800"
               src={`https://api.dicebear.com/9.x/notionists/svg?seed=${name}`}
               width={60}
@@ -29,6 +28,7 @@ export const AvatarCircles = ({
               style={{
                 backgroundColor: color,
               }}
+              alt={name}
             />
           </TooltipTrigger>
           <TooltipPositioner side="bottom">
