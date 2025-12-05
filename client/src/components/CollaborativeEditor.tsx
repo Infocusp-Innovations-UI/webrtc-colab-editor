@@ -26,6 +26,8 @@ import { UndoManager } from 'yjs';
 import { yCollab } from 'y-codemirror.next';
 import { WebrtcProvider } from 'y-webrtc';
 import { IndexeddbPersistence } from 'y-indexeddb';
+import { SIGNALLING_SERVERS } from '../constants/constants';
+import { User, isObjectUser } from '../utils/user';
 
 /**
  * Collaborative editor component using CodeMirror 6 and Yjs
@@ -33,19 +35,18 @@ import { IndexeddbPersistence } from 'y-indexeddb';
  */
 interface CollaborativeEditorProps {
   roomName?: string; // Room name for collaboration session
-  userId: string; // Add userId to props
-  userName?: string; // Current user's display name
-  setOnlineUsers: React.Dispatch<React.SetStateAction<{ userId: string; name: string }[]>>;
+  localUser: User; // Current user information
+  setRemoteUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
 
 const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   roomName = 'default-room',
-  userId,
-  userName = 'Anonymous',
-  setOnlineUsers
+  localUser,
+  setRemoteUsers,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const prevUsersRef = useRef<string[]>([]);
+  const prevRemoteUsersRef = useRef<User[]>([]);
+  const isInitialLoadRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -53,6 +54,9 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     // Create Yjs document and shared text
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText('codemirror');
+    const provider = new WebrtcProvider(roomName, ydoc, {
+      signaling: SIGNALLING_SERVERS,
+    });
 
     // Set up IndexedDB persistence
     const persistence = new IndexeddbPersistence(roomName, ydoc);
@@ -78,41 +82,40 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           { tag: tags.function(tags.variableName), color: '#795E26' },
         ]);
 
-        const provider = new WebrtcProvider(roomName, ydoc, {
-          signaling: ['https://webrtc-colab-editor-signaling-server.onrender.com'],
-        });
-
         // Set current user info in awareness
-        provider.awareness.setLocalStateField('user', {
-          name: userName,
-          color: getRandomColor(),
-          userId
-        });
+        provider.awareness.setLocalStateField('user', localUser);
 
-        // Track other online users
+        // Track other online users (remote users)
         const updateUsers = () => {
           const states = Array.from(provider.awareness.getStates().values());
-          const users = states
-            .map((state: any) => state.user)
-            .filter((user): user is { name: string; userId: string } => !!user && !!user.name && user.userId !== userId);
+          const remoteUsers = states
+            .map((state: any): any => state.user)
+            .filter(isObjectUser)
+            .filter(({ id }: User) => id !== localUser.id);
+          const remoteUserIds = remoteUsers.map(({ id }: User) => id);
 
-          const userNames = users.map(user => user.name);
-          const prevUserNames = prevUsersRef.current;
+          const prevRemoteUsers = prevRemoteUsersRef.current;
+          const prevRemoteUserIds = prevRemoteUsers.map(({ id }: User) => id);
 
-          userNames.forEach(name => {
-            if (!prevUserNames.includes(name)) {
-              toast.info(`${name} joined`);
-            }
-          });
+          if (!isInitialLoadRef.current) {
+            // Notify about new users that joined.
+            remoteUsers.forEach(({ id, name }: User) => {
+              if (!prevRemoteUserIds.includes(id)) {
+                toast.info(`${name} joined`);
+              }
+            });
 
-          prevUserNames.forEach(name => {
-            if (!userNames.includes(name)) {
-              toast.info(`${name} left`);
-            }
-          });
+            // Notify about users that left.
+            prevRemoteUsers.forEach(({ id, name }: User) => {
+              if (!remoteUserIds.includes(id)) {
+                toast.info(`${name} left`);
+              }
+            });
+          }
 
-          prevUsersRef.current = userNames;
-          setOnlineUsers(users.map(user => ({ userId: user.userId, name: user.name })));
+          prevRemoteUsersRef.current = remoteUsers;
+          isInitialLoadRef.current = false;
+          setRemoteUsers(remoteUsers);
         };
 
         provider.awareness.on('change', updateUsers);
@@ -211,11 +214,10 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       persistence.destroy();
       ydoc.destroy();
     };
-  }, [roomName, userId, userName, setOnlineUsers]);
+  }, [roomName, localUser, localUser.id, localUser.name, localUser.color, setRemoteUsers]);
 
   return (
     <div className="flex flex-col flex-grow bg-gray-100 rounded-lg shadow-lg">
-      {/* Editor container */}
       <div
         ref={editorRef}
         className="flex-grow rounded-b-lg overflow-hidden"
@@ -223,14 +225,5 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     </div>
   );
 };
-
-// Helper function to generate random colors for user cursors
-function getRandomColor(): string {
-  const colors = [
-    '#30bced', '#6eeb83', '#ffbc42', '#ecd444', '#ee6352',
-    '#9ac2c9', '#8acb88', '#1be7ff'
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
 
 export default CollaborativeEditor;

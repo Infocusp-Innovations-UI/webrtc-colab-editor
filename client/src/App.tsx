@@ -1,27 +1,25 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import CollaborativeEditor from './components/CollaborativeEditor';
-import OnlineUsers from './components/OnlineUsers';
+import RemoteUsers from './components/RemoteUsers';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { ROOM_NAME } from './constants/constants';
+import { User } from './utils/user';
+import { getColorFromUserId } from './utils/color';
 
 function App() {
-  const [onlineUsers, setOnlineUsers] = useState<{ userId: string; name: string }[]>([]);
+  const [remoteUsers, setRemoteUsers] = useState<User[]>([]);
 
-  const [{ userId, userName }] = useState(() => {
-    let userId = sessionStorage.getItem('userId');
-    if (!userId) {
-      userId = uuidv4();
-      sessionStorage.setItem('userId', userId);
-    }
+  const [user] = useState<User>(() => {
+    const id = sessionStorage.getItem('userId') ?? uuidv4();
+    const name = sessionStorage.getItem('userName') ?? `User-${Math.floor(Math.random() * 1000)}`;
+    const color = sessionStorage.getItem('userColor') ?? getColorFromUserId(id);
+    sessionStorage.setItem('userId', id);
+    sessionStorage.setItem('userName', name);
+    sessionStorage.setItem('userColor', color);
 
-    const storedUserName = sessionStorage.getItem('userName');
-    if (storedUserName) {
-      return { userId, userName: storedUserName };
-    }
-    const newUserName = `User-${Math.floor(Math.random() * 1000)}`;
-    sessionStorage.setItem('userName', newUserName);
-    return { userId, userName: newUserName };
+    return { id, name, color };
   });
 
   return (
@@ -32,13 +30,12 @@ function App() {
 
       <main className="flex-grow w-full max-w-4xl p-4 flex flex-row">
         <CollaborativeEditor
-          roomName="my-room"
-          userId={userId}
-          userName={userName}
-          setOnlineUsers={setOnlineUsers}
+          roomName={ROOM_NAME}
+          localUser={user}
+          setRemoteUsers={setRemoteUsers}
         />
         <div className="w-64 pl-4">
-          <OnlineUsers users={onlineUsers} />
+          <RemoteUsers users={remoteUsers} />
         </div>
       </main>
       <ToastContainer aria-label="Notifications" />
