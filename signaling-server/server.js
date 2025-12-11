@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+// YJS signalling server.
+
 import { WebSocketServer } from 'ws'
 import http from 'http'
 import * as map from 'lib0/map'
