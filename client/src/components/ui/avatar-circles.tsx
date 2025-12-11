@@ -1,5 +1,6 @@
 import { cn } from "../../lib/utils";
 import { User } from "../../utils/user";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipPositioner } from "./tooltip";
 
 interface AvatarCirclesProps {
@@ -9,6 +10,7 @@ interface AvatarCirclesProps {
 }
 
 const DEFAULT_DISPLAY_COUNT = 3;
+const AVATAR_SIZE = 60;
 
 export const AvatarCircles = ({
   className,
@@ -21,12 +23,13 @@ export const AvatarCircles = ({
         <Tooltip key={id}>
           <TooltipTrigger>
             <img
-              className="h-10 w-10 rounded-full border-2 border-white dark:border-gray-800"
-              src={`https://api.dicebear.com/9.x/notionists/svg?seed=${name}`}
-              width={60}
-              height={60}
+              className="rounded-full border-4"
+              src={`https://api.dicebear.com/9.x/notionists/svg?seed=${name}`}              
               style={{
-                backgroundColor: color,
+                backgroundColor: 'white',
+                borderColor: color,
+                height: AVATAR_SIZE,
+                width: AVATAR_SIZE,
               }}
               alt={name}
             />
@@ -39,12 +42,38 @@ export const AvatarCircles = ({
         </Tooltip>
       ))}
       {users.length > displayCount && (
-        <a
-          className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-black text-center text-xs font-medium text-white hover:bg-gray-600 dark:border-gray-800 dark:bg-white dark:text-black"
-          href=""
-        >
-          +{users.length - displayCount}
-        </a>
+        <Popover>
+          <PopoverTrigger asChild>
+            <span
+              className="cursor-pointer flex items-center justify-center rounded-full bg-black text-center text-base font-medium text-white hover:bg-gray-600"
+              style={{               
+                height: AVATAR_SIZE,
+                width: AVATAR_SIZE,
+              }}          
+            >
+              +{users.length - displayCount}
+            </span>
+          </PopoverTrigger>
+          <PopoverContent side="bottom" className="w-auto p-4">
+            <div className="flex flex-col space-y-2">
+              {users.slice(displayCount).map(({ id, name, color }: User) => (
+                <div key={id} className="flex items-center space-x-2 rtl:space-x-reverse">
+                  <img
+                    className="rounded-full border-2"
+                    src={`https://api.dicebear.com/9.x/notionists/svg?seed=${name}`}                    
+                    style={{             
+                      borderColor: color,         
+                      height: AVATAR_SIZE / 2,
+                      width: AVATAR_SIZE / 2,
+                    }}
+                    alt={name}
+                  />
+                  <span className="text-sm font-medium">{name}</span>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   )

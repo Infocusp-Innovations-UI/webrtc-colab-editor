@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
@@ -217,7 +217,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   }, [roomName, localUser, localUser.id, localUser.name, localUser.color, setRemoteUsers]);
 
   return (
-    <div className="flex flex-col flex-grow bg-gray-100 rounded-lg shadow-lg">
+    <div className="flex flex-col flex-grow bg-gray-100 rounded-lg shadow-2xl">
       <div
         ref={editorRef}
         className="flex-grow rounded-b-lg overflow-hidden"
