@@ -46,7 +46,6 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const prevRemoteUsersRef = useRef<User[]>([]);
-  const isInitialLoadRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -88,37 +87,43 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         // Track other online users (remote users)
         const updateUsers = () => {
           const states = Array.from(provider.awareness.getStates().values());
+          const currentRemoteUsers = states
+            .map((state: any): any => state.user)
+            .filter(isObjectUser)
+            .filter(({ id }: User) => id !== localUser.id);
+
+          setRemoteUsers(currentRemoteUsers);
+          prevRemoteUsersRef.current = currentRemoteUsers;
+        };
+
+        provider.awareness.on('change', () => {
+          const states = Array.from(provider.awareness.getStates().values());
           const remoteUsers = states
             .map((state: any): any => state.user)
             .filter(isObjectUser)
             .filter(({ id }: User) => id !== localUser.id);
-          const remoteUserIds = remoteUsers.map(({ id }: User) => id);
 
           const prevRemoteUsers = prevRemoteUsersRef.current;
-          const prevRemoteUserIds = prevRemoteUsers.map(({ id }: User) => id);
+          const remoteUserIds = remoteUsers.map(({ id }) => id);
+          const prevRemoteUserIds = prevRemoteUsers.map(({ id }) => id);
 
-          if (!isInitialLoadRef.current) {
-            // Notify about new users that joined.
-            remoteUsers.forEach(({ id, name }: User) => {
-              if (!prevRemoteUserIds.includes(id)) {
-                toast.info(`${name} joined`);
-              }
-            });
+          // Notify about new users that joined.
+          remoteUsers.forEach(({ id, name }) => {
+            if (!prevRemoteUserIds.includes(id)) {
+              toast.info(`${name} joined`, { duration: 2000 });
+            }
+          });
 
-            // Notify about users that left.
-            prevRemoteUsers.forEach(({ id, name }: User) => {
-              if (!remoteUserIds.includes(id)) {
-                toast.info(`${name} left`);
-              }
-            });
-          }
+          // Notify about users that left.
+          prevRemoteUsers.forEach(({ id, name }) => {
+            if (!remoteUserIds.includes(id)) {
+              toast.info(`${name} left`, { duration: 2000 });
+            }
+          });
 
-          prevRemoteUsersRef.current = remoteUsers;
-          isInitialLoadRef.current = false;
           setRemoteUsers(remoteUsers);
-        };
-
-        provider.awareness.on('change', updateUsers);
+          prevRemoteUsersRef.current = remoteUsers;
+        });
         updateUsers();
 
         // Configure editor with comprehensive extensions
